@@ -210,6 +210,7 @@ class senderChatRoom extends Thread {
                 else if(userInput[0].equals("#PUT") && userInput.length == 2){
                     msgWriter.println(msg);
                     chatRoom.fileName = userInput[1];
+
                 }
                 else if(userInput[0].equals("#GET") && userInput.length == 2){
                     msgWriter.println(msg);
