@@ -304,19 +304,19 @@ void main(void)
 
         /* count track rounds */
         if(!sensor1 && sensor2 && sensor3 && sensor4 && sensor5 && sensor6 && sensor7 && !sensor8){ 
-
-            if(lab_count >= 1) {    // 1) If labs value is greater than 2, Stop Machine
+            if(lab_count >= 1) {
                 move(0,0);
                 return;
             }
-            else {                  // 2) If labs value is less than 2, (labs value) += 1
+            else { 
                 left_forward();
                 right_forward();
 
                 move(2000, 2000);
 
-                left_count = 0;     // 2-2) Give a delay to increase lab's count only once
-                while(1) {          //      during the width of the starting line
+                left_count = 0;
+
+                while(1) {
                     left_forward();
                     right_forward();
 
@@ -332,11 +332,12 @@ void main(void)
         /* extreme turn(sharp curve section) handler */
         else if(!sensor1 && sensor2 && (!sensor3 || sensor4) && sensor5 && !sensor6 && !sensor7 && !sensor8){
             int i;
-            little_bit_forward();           // 1) Function that goes forward a little bit
+            little_bit_forward(); 
 
-            move(2000, 2000);               // 2) For exception condition
+            move(2000, 2000);
             left_count = 0;
-            while(1) {                      // 2-2) Within the exception, Turn right about 170 degrees
+
+            while(1) {
                 left_forward();
                 right_backward();
 
@@ -345,14 +346,14 @@ void main(void)
                     break;
                 }
             }
-            for(i = 0; i < 3; i++) {        // 3) Function that goes forward a little bit 
+            for(i = 0; i < 3; i++) {
                 little_bit_forward();
             }
         }
 
         /* go straight */
         else if(sensor4 && sensor5 && (!sensor3) && (!sensor6)) {
-            left_forward();     // When only sensor4 and sensor5 are on, it moves forward
+            left_forward();
             right_forward();
             move(2000, 2000);
         }
@@ -361,37 +362,37 @@ void main(void)
 
         /* left 90 degree */
         else if(sensor5 && sensor6 && sensor7 && sensor8 && !sensor1) {
-            left_forward();                         // When sensor 5 to 8 are on, Turn left
+            left_forward();
             right_forward();
             move(2000, 2000);
 
             int i;
-            int count = 100;            
-            for(i=0; i<count; i++) {                // 1) Move forward a little to keep the machine
-                systick_wait1ms();                  //    in the center of the line
+            int count = 100;
+            for(i=0; i<count; i++) {
+                systick_wait1ms();
             }
 
-            /* 90 degree turn */
+            //90 degree turn
             left_count = 0;
-            move(2000, 2000);                       
+            move(2000, 2000);
             while(1){
-                IR_LED_charge();                    // 2) Function to sensor recharge
+                IR_LED_charge();
 
                 right_forward();
                 left_backward();
 
-                if(sensor3){                        // 2-2) After updating sensor awareness, 
-                    int j;                          //      If sensor3 is on,
-                    for(j=left_count; j==0; j--){   //      machine recognizes that there is a road ahead..
-                        right_backward();           //      So, it goes back as much as it rotated
+                if(sensor3){
+                    int j;
+                    for(j=left_count; j==0; j--){
+                        right_backward();
                         left_forward();
                         move(2000, 2000);
                     }
                     left_count = 0;
                     break;
                 }
-                if(left_count > 180) {              // 2-3) If machine recognize that there is no road ahead,
-                    left_count = 0;                 //       make a 90 degree left turn
+                if(left_count > 180) {
+                    left_count = 0;
                     break;
                 }
             }
@@ -402,29 +403,29 @@ void main(void)
 
         /* right 90 degree */
         else if(sensor1 && sensor2 && sensor3 && sensor4 && !sensor8) {
-            left_forward();                         // When sensor 1 to 4 are on, Turn right
+            left_forward();
             right_forward();
             move(2000, 2000);
 
             int i;
             int count = 100;
-            for(i=0; i<count; i++) {                // 1) Move forward a little to keep the machine
-                systick_wait1ms();                  //    in the center of the line
+            for(i=0; i<count; i++) {
+                systick_wait1ms();
             }
 
             //90 degree turn
             left_count = 0;
             move(2000, 2000);
             while(1){
-                IR_LED_charge();                    // 2) Function to sensor recharge
+                IR_LED_charge();
 
                 left_forward();
                 right_backward();
 
-                if(sensor6){                        // 2-2) After updating sensor awareness, 
-                    int j;                          //      If sensor6 is on,
-                    for(j=left_count; j==0; j--){   //      machine recognizes that there is a road ahead...
-                        right_forward();            //      So, it goes back as much as it rotated
+                if(sensor6){
+                    int j;
+                    for(j=left_count; j==0; j--){
+                        right_forward();
                         left_backward();
                         move(2000, 2000);
 
@@ -432,8 +433,8 @@ void main(void)
                     left_count = 0;
                     break;
                 }
-                if(left_count > 180) {              // 2-3) If machine recognize that there is no road ahead,
-                    left_count = 0;                 //       make a 90 degree right turn
+                if(left_count > 180) {
+                    left_count=0;
 
                     break;
                 }
@@ -441,9 +442,9 @@ void main(void)
         }
 
 
-        /* Straighten wheel when deviating from the route */
+
         else if(sensor4) {
-            if(sensor3){                      // 1) When sensor3 and sensor4 are on, the machine rotates itself
+            if(sensor3){
                 int count = 0;
                 while(1) {
                     IR_LED_charge();
@@ -454,11 +455,12 @@ void main(void)
                     move(2000, 2000);
 
                     if(!sensor1 && sensor2 && sensor3 && sensor4 && sensor5 && sensor6 && sensor7 && !sensor8){
-                        left_backward();      // 2) If it is a starting line, delay it
-                        right_forward();      //    during the width of the starting line
+                        left_backward();
+                        right_forward();
 
                         int j;
-                        for(j=count; j==0; j--){}
+                        for(j=count; j==0; j--){
+                        }
                         if(lab_count >= 1) {
                             move(0,0);
                             return;
@@ -475,14 +477,14 @@ void main(void)
                 }
             }
 
-            else{                           // 3) When sensor4 is on and sensor3 is off,
-                right_forward();            //    Turn left to keep the machine in the center of the line
+            else{
+                right_forward();
                 move(0, 1200);
 
                 IR_LED_charge();
                 if(!sensor1 && sensor2 && sensor3 && sensor4 && sensor5 && sensor6 && sensor7 && !sensor8){
-                    left_forward();         // 4) If it is a starting line, delay it
-                    move(1200, 0);          //    during the width of the starting line
+                    left_forward();
+                    move(1200, 0);
 
                     if(lab_count >= 1) {
                         move(0,0);
@@ -550,7 +552,7 @@ void main(void)
 
         }
 
-    /* no signal */
+    //no signal
         else {
             //LED turn off
             P2->OUT &= ~0x07;
