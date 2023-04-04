@@ -27,17 +27,31 @@ class Color:
 
 class Camera():
     def __init__(self, viewPoint, viewDir, viewProjNormal, projDistance, viewUp, viewWidth, viewHeight):
-        self.viewPoint = viewPoint
-        self.viewDir = viewDir
+        self.viewPoint = viewPoint # 카메라 위치벡터(p)
+        self.viewDir = viewDir # 카메라의 방향벡터(d)
         
-        self.viewProjNormal = viewProjNormal
-        self.projDistance = projDistance
+        self.viewProjNormal = viewProjNormal # 카메라의 Normal Vector
+        self.projDistance = projDistance # Focal Length
 
-        self.viewUp = viewUp
-        self.viewWidth = viewWidth
-        self.viewHeight = viewHeight
+        self.viewUp = viewUp # normal Vector
+        self.viewWidth = viewWidth # 이미지 넓이(r-l)
+        self.viewHeight = viewHeight # 이미지 높이(t-b)
 
-    # def getRay(self):
+        # self.w = viewDir
+        # self.u = np.cross(self.w, self.viewUp)
+        # self.v = np.cross(self.w, self.u)
+        # 시야각을 어떻게 구하지
+        # e - d 로 이미지의 센터를 구해주고
+        # viewUp가 이미지의 센터에서 수직벡터니까 해당 index의 value*2가 
+        self.u = l + self.viewWidth(i + 0.5) / n_x
+        self.v = b + self.viewHeight(j + 0.5) / n_y
+        
+    def getRay(self, t):
+        return self.viewPoint + (t * self.viewDir)
+    
+    # def getOrthographicVector(self):
+        
+    
 class Shader():
     def __init__(self, name, type, diffuseColor, specularColor=[0,0,0], exponent=0):
         self.name = name
@@ -64,7 +78,7 @@ def main():
     # set default values
     viewDir=np.array([0,0,-1]).astype(np.float64)
     viewUp=np.array([0,1,0]).astype(np.float64)
-    viewProjNormal=-1*viewDir  # you can safely assume this. (no examples will use shifted perspective camera)
+    viewProjNormal=-1*viewDir 
     viewWidth=1.0
     viewHeight=1.0
     projDistance=1.0
@@ -103,10 +117,10 @@ def main():
         # print('diffuseColor', diffuseColor_c)
         
     for c in root.findall('light'):
-        intensity_c = np.array(c.findtext('intensity').split()).astype(np.float64)
+        intensity = np.array(c.findtext('intensity').split()).astype(np.float64)
         position_c = np.array(c.findtext('position').split()).astype(np.float64)
         
-        light = (Light(position_c, intensity_c))
+        light = (Light(position_c, intensity))
     
     for c in root.findall('surface'):
         type_c = c.get('type')
