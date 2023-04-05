@@ -5,6 +5,7 @@
 
 from ctypes.wintypes import RGB
 from functools import reduce
+import math
 import os
 import sys
 import pdb  # use pdb.set_trace() for debugging
@@ -12,7 +13,7 @@ import code # or use code.interact(local=dict(globals(), **locals()))  for debug
 import xml.etree.ElementTree as ET
 import numpy as np
 import torch
-from .utils.random import random_in_unit_disk
+# from .utils.random import random_in_unit_disk
 from PIL import Image
 class Color:
     def __init__(self, R, G, B):
@@ -25,51 +26,115 @@ class Color:
     def toUINT8(self):
         return (np.clip(self.color, 0,1)*255).astype(np.uint8)
 
-class Camera():
-    def __init__(self, viewPoint, viewDir, viewProjNormal, projDistance, viewUp, viewWidth, viewHeight):
+def normalize(vector):
+    return vector / np.linalg.norm(vector)
+
+class Camera(object):
+    def __init__(self, viewPoint, viewDir, viewProjNormal, projDistance, viewUp, viewWidth, viewHeight, imgSize):
         self.viewPoint = viewPoint # 카메라 위치벡터(p)
         self.viewDir = viewDir # 카메라의 방향벡터(d)
         
         self.viewProjNormal = viewProjNormal # 카메라의 Normal Vector
         self.projDistance = projDistance # Focal Length
 
-        self.viewUp = viewUp # normal Vector
-        self.viewWidth = viewWidth # 이미지 넓이(r-l)
-        self.viewHeight = viewHeight # 이미지 높이(t-b)
+        self.viewUp = viewUp # Normal Vector
+        self.viewWidth = viewWidth # 카메라의 시야넓이
+        self.viewHeight = viewHeight # 카메라의 시야높이
+        self.imgSize = imgSize
+        
+        d = normalize(self.viewDir)
+        a = normalize(self.viewUp)
+        self.u = normalize(np.cross(d, a))
+        self.v = normalize(np.cross(d, self.u))
+        self.w = normalize(np.cross(self.v, self.u)) # w = -d, d의 반대 방향
+        
+        # p - d * w 로 카메라뷰의 센터를 구해준다
+        self.viewCenter = self.viewPoint - (self.projDistance * self.w)
+        
+        self.horizontalVector = np.array([self.viewWidth[0], 0.0, 0.0])
+        self.verticalVector = np.array([0.0, self.viewHeight[0], 0.0])
+        dist = np.array([0.0, 0.0, self.projDistance[0]])
+        # self.u = l + self.viewWidth(i + 0.5) / n_x
+        # self.v = b + self.viewHeight(j + 0.5) / n_y
+        # self.bottomLeftCorner = self.viewCenter - self.horizontalVector/2 - self.verticalVector/2 - dist
+        
+        
+    # self.u = l + self.viewWidth(i + 0.5) / n_x
+    # self.v = b + self.viewHeight(j + 0.5) / n_y
+    def getPlanePoint(self, i, j):
+        return self.viewCenter - (0.5) * self.viewWidth * self.u - (0.5) * self.viewHeight * self.v + (self.viewWidth / self.imgSize[0] * (i + 0.5)) * self.u + (self.viewHeight / self.imgSize[1] * (j + 0.5)) * self.v
 
-        # self.w = viewDir
-        # self.u = np.cross(self.w, self.viewUp)
-        # self.v = np.cross(self.w, self.u)
-        # 시야각을 어떻게 구하지
-        # e - d 로 이미지의 센터를 구해주고
-        # viewUp가 이미지의 센터에서 수직벡터니까 해당 index의 value*2가 
-        self.u = l + self.viewWidth(i + 0.5) / n_x
-        self.v = b + self.viewHeight(j + 0.5) / n_y
-        
-    def getRay(self, t):
-        return self.viewPoint + (t * self.viewDir)
+    #i, j에서의 viewing ray vector을 return
+    def getViewingRay(self, i, j):
+        return normalize(self.getPlanePoint(i, j) - self.viewPoint)
+        # return self.bottomLeftCorner + (self.horizontalVector * i / (self.imgSize[0] - 1)) + (self.verticalVector * j / (self.imgSize[1] - 1)) - self.viewPoint
     
-    # def getOrthographicVector(self):
-        
+    # t에서의 pixel 값을 return
+    def getPixel(self, ray, t):
+        return ray.origin + (ray.direction * t)
+
+class Ray():
+    def __init__(self, origin, direction):
+        self.origin = origin
+        self.direction = direction
     
 class Shader():
-    def __init__(self, name, type, diffuseColor, specularColor=[0,0,0], exponent=0):
+    def __init__(self, name, type, diffuseColor, specularColor, exponent):
         self.name = name
         self.type = type
         self.diffuseColor = diffuseColor
         self.specularColor = specularColor
         self.exponent = exponent
         
-class Sphere():
+class Surface(object):
+    def __init__(self, shader):
+        self.shader = shader
+
+    def lambertian(self, pixel, normalVector, light):
+        lightRay = normalize(light.position - pixel)
+        return max(0, normalVector @ lightRay) * light.intensity
+    
+    def phong(self, viewingRay, pixel, normalVector, light, exponent):
+        lightRay = normalize(light.position - pixel)
+        h = normalize(lightRay - viewingRay)
+        
+        return max(0, pow(normalVector @ h, exponent)) * light.intensity
+    
+class Sphere(Surface):
     def __init__(self, shader, radius, center):
         self.shader = shader
         self.radius = radius
         self.center = center
+        
+    def getIntersectSphere(self, origin, ray):
+        x = 2 * np.dot(ray, origin - self.center)
+        y = np.linalg.norm(origin - self.center) ** 2 - self.radius ** 2
+        delta = (x ** 2) - (4 * y)
+        
+        if delta > 0:
+            t1 = (-x + np.sqrt(delta)) / 2
+            t2 = (-x - np.sqrt(delta)) / 2
+            if t1 > 0 and t2 > 0:
+                return min(t1, t2)
+        return None
+
+
+    def getNearestSphere(self, origin, ray, surface):
+        distances = [obj.getIntersectSphere(origin, ray) for obj in surface]
+        nearestSphere = None
+        minDistance = np.inf
+        
+        for index, distance in enumerate(distances):
+            if distance and distance < minDistance:
+                minDistance = distance
+                nearestSphere = surface[index]
+                
+        return nearestSphere, minDistance
     
 class Light():
     def __init__(self, position, intensity):
         self.position = position
-        self.color = intensity
+        self.intensity = intensity
 
 def main():
     tree = ET.parse(sys.argv[1])
@@ -86,8 +151,7 @@ def main():
     
     shader = []
     surface = []
-    print(np.cross(viewDir, viewUp))
-
+    
     imgSize=np.array(root.findtext('image').split()).astype(np.int32)
     
     for c in root.findall('camera'):
@@ -99,22 +163,17 @@ def main():
             projDistance = np.array(c.findtext('projDistance').split()).astype(np.float64)
         viewWidth = np.array(c.findtext('viewWidth').split()).astype(np.float64)
         viewHeight = np.array(c.findtext('viewHeight').split()).astype(np.float64)
-        camera = Camera(viewPoint, viewDir, viewProjNormal, projDistance, viewUp, viewWidth, viewHeight)
-        # print('viewpoint', viewPoint)
+        camera = Camera(viewPoint, viewDir, viewProjNormal, projDistance, viewUp, viewWidth, viewHeight, imgSize)
         
     for c in root.findall('shader'):
         type_c = c.get('type')
-        name_c = c.get('name')
-        if type_c == 'Phong':
-            diffuseColor_c=np.array(c.findtext('diffuseColor').split()).astype(np.float64)
-            shader.append(Shader(name_c, type_c, diffuseColor_c))
-        elif type_c == 'Lambertian':
-            diffuseColor_c=np.array(c.findtext('diffuseColor').split()).astype(np.float64)
-            specularColor_c = np.array(c.findtext('specularColor').split()).astype(np.float64)
-            exponent_c = np.array(c.findtext('exponent').split()).astype(np.float64)
-            shader.append(Shader(name_c, type_c, diffuseColor_c, specularColor_c, exponent_c))
-        # print('name', c.get('name'))
-        # print('diffuseColor', diffuseColor_c)
+        diffuseColor_c=np.array(c.findtext('diffuseColor').split()).astype(np.float64)
+        specularColor_c=np.array([.0, .0, .0])
+        exponent_c = 0.0
+        if (type_c == 'Phong'):
+            specularColor_c=np.array(c.findtext('specularColor').split()).astype(np.float64)
+            exponent_c=(np.float64)(c.findtext('exponent'))
+        shader.append(Shader(c.get('name'), type_c, diffuseColor_c, specularColor_c, exponent_c))
         
     for c in root.findall('light'):
         intensity = np.array(c.findtext('intensity').split()).astype(np.float64)
@@ -142,12 +201,44 @@ def main():
     img = np.zeros((imgSize[1], imgSize[0], channels), dtype=np.uint8)
     img[:,:]=0
 
-    for x in np.arange(imgSize[0]):
-        for y in np.arange(imgSize[1]):
-            ray = start + u_unit * x * view.x + view.y * y * v_unit
-            tmp = raytrace(list, ray, view.viewPoint)
-            img[y][x] = shade(tmp[0], ray, view, list, tmp[1], light)
 
+    white = Color(1,1,1)
+    for y in np.arange(imgSize[1]):
+        for x in np.arange(imgSize[0]):
+            pixel = 0.0
+            ray = camera.getViewingRay(x, y) # 좌표 x,y 에서의 Ray Vector을 반환
+            startSurface = None
+            
+            for s in surface:
+                hitSurface, pixel = s.getNearestSphere(camera.viewPoint, ray, surface)
+                if hitSurface is not None:
+                    startSurface = hitSurface
+                    
+            if startSurface is not None:
+                hitPoint = camera.viewPoint + pixel * ray
+                normalVector = normalize(hitPoint - startSurface.center)
+                
+                for s in shader:
+                    # print(s.name, startSurface.shader.name)    
+                    if s.name == startSurface.shader.name:
+                        color = np.array([0.0, 0.0, 0.0]) # init
+                        
+                        shadowSurface = None
+                        shadowRay = (light.position - hitPoint) / normalize(light.position - hitPoint)
+                        
+                        for ss in surface:
+                            shadowSurface, _ = ss.getNearestSphere(camera.viewPoint, shadowRay, surface)    
+
+                        if shadowSurface is None:
+                            if s.type == 'Phong':
+                                color += s.specularColor * startSurface.phong(ray, hitPoint, normalVector, light, s.exponent) * 1
+                            color += s.diffuseColor * startSurface.lambertian(hitPoint, normalVector, light)
+                        else: 
+                            print('unknown shader type')  
+                        
+                        img[y][x] += Color(color[0], color[1], color[2]).toUINT8()
+                        # print('img[',y,'][',x,'] = ', img[y][x])
+          
     rawimg = Image.fromarray(img, 'RGB')
     rawimg.save(sys.argv[1] + '.png')
 
