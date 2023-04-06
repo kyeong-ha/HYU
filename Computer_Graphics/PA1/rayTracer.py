@@ -50,24 +50,20 @@ class Camera(object):
         
         # p - d * w 로 카메라뷰의 센터를 구해준다
         self.viewCenter = self.viewPoint - (self.projDistance * self.w)
-        
-        self.horizontalVector = np.array([self.viewWidth[0], 0.0, 0.0])
-        self.verticalVector = np.array([0.0, self.viewHeight[0], 0.0])
-        dist = np.array([0.0, 0.0, self.projDistance[0]])
-        # self.u = l + self.viewWidth(i + 0.5) / n_x
-        # self.v = b + self.viewHeight(j + 0.5) / n_y
-        # self.bottomLeftCorner = self.viewCenter - self.horizontalVector/2 - self.verticalVector/2 - dist
-        
-        
-    # self.u = l + self.viewWidth(i + 0.5) / n_x
-    # self.v = b + self.viewHeight(j + 0.5) / n_y
+        # self.horizontalVector = np.array([self.viewWidth[0], 0.0, 0.0])
+        # self.verticalVector = np.array([0.0, self.viewHeight[0], 0.0])
+
+        self.bottomLeftCorner = self.viewCenter - self.viewWidth/2 * self.u - self.viewHeight/2 * self.v
+   
     def getPlanePoint(self, i, j):
-        return self.viewCenter - (0.5) * self.viewWidth * self.u - (0.5) * self.viewHeight * self.v + (self.viewWidth / self.imgSize[0] * (i + 0.5)) * self.u + (self.viewHeight / self.imgSize[1] * (j + 0.5)) * self.v
+        # u = l + self.viewWidth(i + 0.5) / n_x
+        # v = b + self.viewHeight(j + 0.5) / n_y
+        return self.bottomLeftCorner + (self.viewWidth / self.imgSize[0] * (i + 0.5)) * self.u + (self.viewHeight / self.imgSize[1] * (j + 0.5)) * self.v
 
     #i, j에서의 viewing ray vector을 return
     def getViewingRay(self, i, j):
-        return normalize(self.getPlanePoint(i, j) - self.viewPoint)
         # return self.bottomLeftCorner + (self.horizontalVector * i / (self.imgSize[0] - 1)) + (self.verticalVector * j / (self.imgSize[1] - 1)) - self.viewPoint
+        return normalize(self.getPlanePoint(i, j) - self.viewPoint)
     
     # t에서의 pixel 값을 return
     def getPixel(self, ray, t):
@@ -201,8 +197,6 @@ def main():
     img = np.zeros((imgSize[1], imgSize[0], channels), dtype=np.uint8)
     img[:,:]=0
 
-
-    white = Color(1,1,1)
     for y in np.arange(imgSize[1]):
         for x in np.arange(imgSize[0]):
             pixel = 0.0
@@ -231,7 +225,7 @@ def main():
 
                         if shadowSurface is None:
                             if s.type == 'Phong':
-                                color += s.specularColor * startSurface.phong(ray, hitPoint, normalVector, light, s.exponent) * 1
+                                color += s.specularColor * startSurface.phong(ray, hitPoint, normalVector, light, s.exponent)
                             color += s.diffuseColor * startSurface.lambertian(hitPoint, normalVector, light)
                         else: 
                             print('unknown shader type')  
@@ -242,10 +236,5 @@ def main():
     rawimg = Image.fromarray(img, 'RGB')
     rawimg.save(sys.argv[1] + '.png')
 
-
-    # rawimg = Image.fromarray(img, 'RGB')
-    # #rawimg.save('out.png')
-    # rawimg.save(sys.argv[1]+'.png')
-    
 if __name__=="__main__":
     main()
