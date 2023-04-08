@@ -30,7 +30,16 @@ def normalize(vector):
     return vector / np.linalg.norm(vector)
 
 class Camera(object):
-    def __init__(self, viewPoint, viewDir, viewProjNormal, projDistance, viewUp, viewWidth, viewHeight, imgSize):
+    def __init__(self, 
+                 viewPoint, 
+                 viewDir, 
+                 viewProjNormal, 
+                 projDistance, 
+                 viewUp, 
+                 viewWidth, 
+                 viewHeight, 
+                 imgSize
+    ):
         self.viewPoint = viewPoint # 카메라 위치벡터(p)
         self.viewDir = viewDir # 카메라의 방향벡터(d)
         
@@ -58,7 +67,9 @@ class Camera(object):
     def getPlanePoint(self, i, j):
         # u = l + self.viewWidth(i + 0.5) / n_x
         # v = b + self.viewHeight(j + 0.5) / n_y
-        return self.bottomLeftCorner + (self.viewWidth / self.imgSize[0] * (i + 0.5)) * self.u + (self.viewHeight / self.imgSize[1] * (j + 0.5)) * self.v
+        return (self.bottomLeftCorner 
+                + (self.viewWidth / self.imgSize[0] * (i + 0.5)) * self.u 
+                + (self.viewHeight / self.imgSize[1] * (j + 0.5)) * self.v)
 
     #i, j에서의 viewing ray vector을 return
     def getViewingRay(self, i, j):
@@ -103,13 +114,15 @@ class Sphere(Surface):
         self.center = center
         
     def getIntersectSphere(self, origin, ray):
-        x = 2 * np.dot(ray, origin - self.center)
-        y = np.linalg.norm(origin - self.center) ** 2 - self.radius ** 2
-        delta = (x ** 2) - (4 * y)
+        centerToOrigin = origin - self.center
+        a = np.dot(ray, ray)
+        b = 2 * np.dot(ray, origin - self.center)
+        c = np.dot(centerToOrigin, centerToOrigin) - self.radius ** 2
+        delta = b ** 2 - 4 * a * c
         
         if delta > 0:
-            t1 = (-x + np.sqrt(delta)) / 2
-            t2 = (-x - np.sqrt(delta)) / 2
+            t1 = (-b + np.sqrt(delta)) / 2
+            t2 = (-b - np.sqrt(delta)) / 2
             if t1 > 0 and t2 > 0:
                 return min(t1, t2)
         return None
