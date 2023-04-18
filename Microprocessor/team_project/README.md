@@ -20,6 +20,6 @@
 
 
 # 결과물
-![solved1](./solved1.MOV)
+![solved1](./solved1.mp4)
 
-![solved2](./solved2.MOV)
+![solved2](./solved2.mp4)
