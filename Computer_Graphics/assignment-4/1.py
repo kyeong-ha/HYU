@@ -23,6 +23,7 @@ def render():
 
     # blue base drawing
     glPushMatrix()
+    drawFrame() # render local frames for blue base
     glScalef(.2, .2, .2)
     glColor3ub(0, 0, 255)
     drawBox()
@@ -35,6 +36,7 @@ def render():
 
     # red arm drawing
     glPushMatrix()
+    drawFrame() # render local frames for red arm
     glScalef(.5, .1, .1)
     glColor3ub(255, 0, 0)
     drawBox()
@@ -42,16 +44,17 @@ def render():
     
     # green arm transformation
     glPushMatrix()
-    glRotatef(0, 0, t*(180/np.pi), 1)
     glTranslatef(.5, 0, .01)
+    glRotatef(t*(180/np.pi), 0, 0, 1) #rotate the green arm about red arm's local z axis
 
     # green arm drawing
     glPushMatrix()
+    drawFrame() # render local frames for green arm
     glScalef(.2, .2, .2)
     glColor3ub(0, 255, 0)
+    
     drawBox()
     glPopMatrix()
-    
     glPopMatrix()
     glPopMatrix()
     glPopMatrix()
